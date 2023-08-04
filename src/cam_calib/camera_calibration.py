@@ -12,6 +12,23 @@ class CameraCalibParams:
     rvecs: np.ndarray
     tvecs: np.ndarray
 
+    def to_dict(self) -> dict:
+        return {
+            "camera_matrix": self.camera_matrix.tolist(),
+            "dist_coeffs": self.dist_coeffs.tolist(),
+            "rvecs": self.rvecs.tolist(),
+            "tvecs": self.tvecs.tolist()
+        }
+    
+    @staticmethod
+    def from_dict(params_dict: dict) -> 'CameraCalibParams':
+        return CameraCalibParams(
+            np.array(params_dict["camera_matrix"]),
+            np.array(params_dict["dist_coeffs"]),
+            np.array(params_dict["rvecs"]),
+            np.array(params_dict["tvecs"])
+        )
+
 
 class ICamCalib(ABC):
     def __init__(self, checkerboard_pattern: Tuple[int, int], square_size: float = 1.0):
@@ -32,7 +49,7 @@ class ICamCalib(ABC):
         points_3d = self.get_3d_points()
         return self.calibrate_camera_with_points(points_3d, corners, checkerboard_image.shape[:2])
     
-    def calibrate_camera_multiple_image(self, checkerboard_images: List[np.ndarray]) -> CameraCalibParams:
+    def calibrate_camera_multiple_images(self, checkerboard_images: List[np.ndarray]) -> CameraCalibParams:
         points_3ds = []
         points_2ds = []
         for image in checkerboard_images:
@@ -41,7 +58,7 @@ class ICamCalib(ABC):
                 raise ValueError("Could not find chessboard corners in one of the images")
             points_3ds.append(self.get_3d_points())
             points_2ds.append(corners)
-        return self.calibrate_camera_with_points_multiple(points_3ds, points_2ds, checkerboard_images[0].shape[:2])
+        return self.calibrate_camera_with_points_multiple_images(points_3ds, points_2ds, checkerboard_images[0].shape[:2])
             
 
     @abstractmethod
@@ -80,6 +97,10 @@ class OpenCvCalibration(ICamCalib):
     def calibrate_camera_with_points(self, points_3d: np.ndarray, corners: np.ndarray, image_shape: Tuple[int, int]) -> CameraCalibParams:
         _, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.calibrateCamera([points_3d], [corners], image_shape, None, None)
         return CameraCalibParams(camera_matrix, dist_coeffs, rvecs[0], tvecs[0])
+    
+    def calibrate_camera_with_points_multiple_images(self, points_3ds: List[np.ndarray], corners: List[np.ndarray], image_shape: Tuple[int, int]) -> CameraCalibParams:
+        _, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.calibrateCamera(points_3ds, corners, image_shape, None, None)
+        return CameraCalibParams(camera_matrix, dist_coeffs, rvecs[0], tvecs[0])
 
     @staticmethod
     def find_chessboard_corners(image: np.ndarray) -> np.ndarray:
@@ -114,6 +135,9 @@ class MinimalCameraCalibration(ICamCalib):
         dist_coeffs = self.get_dist_coeffs(points_3d, points_2d, camera_matrix)
         rvecs, tvecs = self.get_rvecs_tvecs(points_3d, points_2d, camera_matrix, dist_coeffs)
         return CameraCalibParams(camera_matrix, dist_coeffs, rvecs, tvecs)
+    
+    def calibrate_camera_with_points_multiple_images(self, points_3ds: List[np.ndarray], corners: List[np.ndarray], image_shape: Tuple[int, int]) -> CameraCalibParams:
+        raise NotImplementedError("Not implemented for this class")
     
     @staticmethod
     def get_camera_matrix(points_3d: np.ndarray, points_2d: np.ndarray, image_shape: Tuple[int, int]) -> np.ndarray:
@@ -161,6 +185,9 @@ class BasicCameraCalibration(ICamCalib):
         camera_matrix, rvecs, tvecs = self.solve_camera_matrix(points_3d, points_2d)
         dist_coeffs = self.get_dist_coeffs(points_3d, points_2d, camera_matrix)
         return CameraCalibParams(camera_matrix, dist_coeffs, rvecs, tvecs)
+    
+    def calibrate_camera_with_points_multiple_images(self, points_3ds: List[np.ndarray], corners: List[np.ndarray], image_shape: Tuple[int, int]) -> CameraCalibParams:
+        raise NotImplementedError("Not implemented for this class")
 
     def solve_camera_matrix(self, points_3d, points_2d) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         # solve for camera matrix
