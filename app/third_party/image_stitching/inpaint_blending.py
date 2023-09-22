@@ -43,24 +43,6 @@ def add_image(
         axis=2,
     )
 
-    normalized_weights = np.zeros_like(weights)
-    normalized_weights = np.divide(
-        weights, (weights + image_weights), where=weights + image_weights != 0
-    )
-
-    # panorama = np.where(
-    #     np.logical_and(
-    #         # np.repeat(np.sum(panorama, axis=2)[:, :, np.newaxis], 3, axis=2) > 0,
-    #         # np.repeat(np.sum(new_image, axis=2)[:, :, np.newaxis], 3, axis=2) < 1,
-    #         np.repeat(np.sum(panorama, axis=2)[:, :, np.newaxis], 3, axis=2) == 0,
-    #         np.repeat(np.sum(new_image, axis=2)[:, :, np.newaxis], 3, axis=2) == 0,
-    #     ),
-    #     0,
-    #     new_image * (1 - normalized_weights) + panorama * normalized_weights,
-    # ).astype(np.uint8)
-
-
-
     # # Define the threshold values
     low_thresh = 50
     high_thresh = 200
@@ -82,9 +64,7 @@ def add_image(
     else:
         gain = avg1 / avg2
     if np.isnan(gain):
-        print("gain is nan")
         gain = 1
-    print(f"gain: {gain}")
 
     # Apply the gain to the second image
     panorama = panorama / gain
